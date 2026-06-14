@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Temp Mail</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#0f172a;
+    color:white;
+    padding:20px;
+}
+
+.container{
+    max-width:700px;
+    margin:auto;
+}
+
+.card{
+    background:#1e293b;
+    padding:20px;
+    border-radius:15px;
+    margin-bottom:15px;
+}
+
+h1{
+    text-align:center;
+    margin-bottom:20px;
+}
+
+.btns{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+
+button{
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:16px;
+    background:#2563eb;
+    color:white;
+}
+
+button:hover{
+    opacity:.9;
+}
+
+.email-box{
+    margin-top:15px;
+    word-break:break-all;
+    background:#0f172a;
+    padding:10px;
+    border-radius:10px;
+}
+
+.refresh-note{
+    position:fixed;
+    bottom:20px;
+    left:0;
+    width:100%;
+    text-align:center;
+
+    color:rgba(255,255,255,0.35);
+
+    font-size:13px;
+    letter-spacing:1px;
+
+    user-select:none;
+}
+
+.mail{
+    background:#0f172a;
+    padding:12px;
+    border-radius:10px;
+    margin-top:10px;
+}
+
+.otp{
+    color:#22c55e;
+    font-weight:bold;
+    margin-top:8px;
+}
+
+.small{
+    opacity:.8;
+    font-size:14px;
+}
+</style>
+</head>
+
+<body>
+<div id="forceJoin" style="text-align:center;padding:30px;">
+
+    <h2>🔒 Access Locked</h2>
+
+    <p>Follow our Instagram to continue</p>
+
+    <br>
+
+    <a href="https://instagram.com/ceobitco"
+   target="_blank"
+   onclick="markVisited()">
+
+    <button>
+        📸Follow for use this site
+    </button>
+
+    </a>
+
+    <br><br>
+
+<div class="refresh-note">
+    Follow Instagram and refresh this page
+</div>
+
+</div>
+<div class="container" id="mainSite" style="display:none;">
+
+<h1>📧 Advanced Temp Mail</h1>
+
+<div class="card">
+    <p>Features:</p>
+    <br>
+    <p>• Instant Temp Mail</p>
+    <p>• OTP Detection</p>
+    <p>• Live Inbox</p>
+    <p>• Refresh Button</p>
+    <p>• New Mail Generator</p>
+</div>
+
+<div class="card">
+
+<div class="btns">
+    <button onclick="createMail()">🆕 New Mail</button>
+    <button onclick="loadInbox()">📥 Inbox</button>
+</div>
+
+<br>
+
+<button style="width:100%" onclick="loadInbox()">🔄 Refresh</button>
+
+<div id="emailBox"></div>
+
+</div>
+
+<div class="card">
+    <h3>Inbox</h3>
+    <div id="inbox">
+        No messages yet.
+    </div>
+</div>
+
+</div>
+
+<script>
+
+let token = localStorage.getItem("token") || "";
+let email = localStorage.getItem("email") || "";
+let password = localStorage.getItem("password") || "";
+let seen = JSON.parse(localStorage.getItem("seen") || "[]");
+
+showEmail();
+
+function randomString(length=10){
+    const chars="abcdefghijklmnopqrstuvwxyz0123456789";
+    let result="";
+    for(let i=0;i<length;i++){
+        result += chars[Math.floor(Math.random()*chars.length)];
+    }
+    return result;
+}
+
+function extractOTP(text){
+    const found = text.match(/\b\d{4,8}\b/g);
+    return found || [];
+}
+
+async function createMail(){
+
+    try{
+
+        document.getElementById("emailBox").innerHTML="Creating...";
+
+        const domains = await fetch(
+            "https://api.mail.tm/domains"
+        ).then(r=>r.json());
+
+        const domain =
+        domains["hydra:member"][0].domain;
+
+        email =
+        randomString(9)+"@"+domain;
+
+        password =
+        randomString(12);
+
+        await fetch(
+            "https://api.mail.tm/accounts",
+            {
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    address:email,
+                    password:password
+                })
+            }
+        );
+
+        const login =
+        await fetch(
+            "https://api.mail.tm/token",
+            {
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    address:email,
+                    password:password
+                })
+            }
+        ).then(r=>r.json());
+
+        token = login.token;
+
+        localStorage.setItem("token",token);
+        localStorage.setItem("email",email);
+        localStorage.setItem("password",password);
+
+        seen=[];
+
+        localStorage.setItem(
+            "seen",
+            JSON.stringify(seen)
+        );
+
+        showEmail();
+
+        alert("Temp Mail Created");
+
+    }catch(err){
+        alert(err);
+    }
+}
+
+function showEmail(){
+
+    if(!email) return;
+
+    document.getElementById("emailBox").innerHTML=
+    `
+    <div class="email-box">
+        <b>Email:</b><br>${email}
+        <br><br>
+        <b>Password:</b><br>${password}
+    </div>
+    `;
+}
+
+async function loadInbox(){
+
+    if(!token){
+        alert("Create mail first");
+        return;
+    }
+
+    try{
+
+        const data =
+        await fetch(
+            "https://api.mail.tm/messages",
+            {
+                headers:{
+                    Authorization:
+                    "Bearer "+token
+                }
+            }
+        ).then(r=>r.json());
+
+        const mails =
+        data["hydra:member"];
+
+        if(!mails.length){
+            document.getElementById("inbox").innerHTML=
+            "📭 Inbox Empty";
+            return;
+        }
+
+        let html="";
+
+        for(const mail of mails){
+
+            const full =
+            await fetch(
+                "https://api.mail.tm/messages/"+mail.id,
+                {
+                    headers:{
+                        Authorization:
+                        "Bearer "+token
+                    }
+                }
+            ).then(r=>r.json());
+
+            const body =
+            full.text ||
+            JSON.stringify(full.html || "");
+
+            const otps =
+            extractOTP(body);
+
+            html += `
+            <div class="mail">
+                <b>📨 From:</b>
+                ${full.from.address}
+                <br><br>
+
+                <b>📌 Subject:</b>
+                ${full.subject}
+                <br><br>
+
+                ${
+                otps.length
+                ?
+                `<div class="otp">
+                🔥 OTP:
+                ${otps.join(", ")}
+                </div>`
+                :
+                ""
+                }
+
+                <div class="small">
+                ${body.substring(0,500)}
+                </div>
+            </div>
+            `;
+        }
+
+        document.getElementById("inbox").innerHTML=
+        html;
+
+    }catch(err){
+
+        document.getElementById("inbox").innerHTML=
+        "Error: "+err;
+    }
+}
+
+setInterval(()=>{
+    if(token){
+        loadInbox();
+    }
+},10000);
+function unlockSite(){
+
+    function markVisited(){
+    localStorage.setItem(
+        "instaVisited",
+        "yes"
+    );
+}
+
+window.addEventListener("load",()=>{
+
+    if(
+        localStorage.getItem(
+            "instaVisited"
+        ) === "yes"
+    ){
+        document.getElementById(
+            "forceJoin"
+        ).style.display="none";
+
+        document.getElementById(
+            "mainSite"
+        ).style.display="block";
+    }
+
+});
+</script>
+
+</body>
+</html>
